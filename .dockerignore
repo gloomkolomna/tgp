@@ -1,0 +1,6 @@
+.git/
+.gitignore
+scripts/
+*.md
+**.md
+.env.example

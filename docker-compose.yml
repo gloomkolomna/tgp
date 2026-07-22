@@ -1,0 +1,26 @@
+version: "3.8"
+
+services:
+  mtproto-proxy:
+    image: telegrammessenger/proxy:latest
+    container_name: tg-proxy
+    restart: unless-stopped
+    ports:
+      - "443:443/tcp"
+      - "443:443/udp"
+      - "80:80/tcp"
+      - "8888:8888/tcp"
+    environment:
+      - SECRET=${SECRET:?err}
+      - TAG=${TAG:-}
+      - WORKERS=${WORKERS:-1}
+    volumes:
+      - proxy-data:/data
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  proxy-data:
