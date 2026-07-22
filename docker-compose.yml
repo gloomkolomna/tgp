@@ -5,7 +5,7 @@ services:
     restart: unless-stopped
     ports:
       - "443:443/tcp"
-    command: "-p 443 -s ${SECRET} -a tls"
+    command: "-p 443 -s ${SECRET} -t 00000000000000000000000000000000 -a tls"
     logging:
       driver: "json-file"
       options:
