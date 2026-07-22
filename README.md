@@ -6,7 +6,7 @@
 
 - Linux-сервер (Debian/Ubuntu рекомендуется)
 - Docker и Docker Compose (`docker compose` plugin)
-- Открытые порты: 443 (TCP+UDP), 80 (TCP), 8888 (TCP)
+- Открытые порты: 443 (TCP)
 - Права root или пользователь в группе `docker`
 
 ## Пошаговая установка
@@ -68,7 +68,7 @@ nano /opt/tg-proxy/.env
 bash scripts/deploy.sh
 ```
 
-Скрипт загрузит официальный образ `telegrammessenger/proxy`, запустит контейнер и выведет ссылки.
+Скрипт загрузит образы, сгенерирует TLS-сертификат, запустит контейнеры и выведет ссылки.
 
 ## Подключение в Telegram
 
@@ -77,11 +77,10 @@ bash scripts/deploy.sh
 Либо вручную:
 1. Telegram → Настройки → Дата и сеть → Настройки прокси
 2. Добавить прокси → MTProto
-3. Хост: IP сервера, Порт: 443, Секрет: из `.env`
+3. Хост: `5.188.20.78`, Порт: `443`, Секрет: из `.env`
 
-**Фейковый TLS** — если обычный заблокирован провайдером:
-- Добавьте `ee` в начало секрета (уже в ссылке с `ee$SECRET`)
-- Прокси будет маскироваться под HTTPS-трафик на `cloudflare.com`
+**Секрет всегда указывай обычный (32 символа, без ee/dd).**
+TLS добавляется автоматически через nginx на 443 порту. Оператор видит HTTPS.
 
 ## Команды
 
@@ -98,10 +97,10 @@ docker compose restart
 # Остановка
 docker compose down
 
-# Обновление образа и перезапуск
+# Обновление образов и перезапуск
 docker compose pull && docker compose up -d
 
-# Полный деплой с git pull + pull + up (одной командой)
+# Полный деплой с git pull, генерацией серта и запуском (одной командой)
 bash scripts/deploy.sh
 ```
 
@@ -118,25 +117,30 @@ bash scripts/deploy.sh
 ## Архитектура
 
 ```
-                                    443/tcp + 443/udp (MTProto)
-Сервер ──▶ docker-compose ──▶ tg-proxy ──▶ Telegram
-                │                │
-                │                └── /data (volume — секреты, кэш)
-                │
-                ├── .env (SECRET, WORKERS)
-                └── docker-compose.yml
+                  443/tcp (TLS)                   443/tcp (MTProto)
+Клиент ──▶ tg-tls (nginx) ──▶ tg-proxy ──▶ Telegram
+               │                    │
+               │                    └── /data (секреты, кэш)
+               │
+               ├── certs/server.{crt,key} (самоподписанный, 10 лет)
+               └── config/nginx.conf
+
+На WiFi:            порт 443, секрет обычный (TLS через nginx — прозрачно)
+На LTE:             порт 443, секрет обычный (TLS через nginx, оператор видит HTTPS)
 ```
 
 ## Файлы проекта
 
 ```
-
-├── docker-compose.yml       # Docker Compose конфиг
+├── docker-compose.yml       # Docker Compose конфиг (nginx + mtproto)
+├── config/
+│   ├── nginx.conf           # nginx stream-прокси с TLS
+│   └── certs/               # Самоподписанные сертификаты (генерятся при деплое)
 ├── .env                     # Переменные окружения (НЕ КОММИТИТЬ)
 ├── .env.example             # Шаблон .env
 ├── .gitignore               # Игнор .env и proxy-data/
 ├── scripts/
-│   ├── deploy.sh            # Деплой: git pull → pull → up → ссылки
+│   ├── deploy.sh            # Деплой: git pull → cert → up → ссылки
 │   ├── generate-secret.sh   # Генерация секрета (Linux/macOS)
 │   └── generate-secret.ps1  # Генерация секрета (Windows)
 └── README.md
