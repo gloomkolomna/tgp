@@ -51,8 +51,8 @@ sleep 4
 
 echo ""
 echo "=== 5/5: Проверка и ссылки ==="
-TG_TLS=$(docker compose ps --status running | grep "tg-tls" || true)
-TG_PROXY=$(docker compose ps --status running | grep "tg-proxy" || true)
+TG_TLS=$(docker compose ps --status running | grep "tls-wrapper" || true)
+TG_PROXY=$(docker compose ps --status running | grep "mtproto-proxy" || true)
 
 if [ -n "$TG_TLS" ] && [ -n "$TG_PROXY" ]; then
   echo "Прокси успешно запущен!"
@@ -75,8 +75,8 @@ if [ -n "$TG_TLS" ] && [ -n "$TG_PROXY" ]; then
   echo "  Секрет указывай обычный (без ee/dd)."
   echo ""
   echo "Проверка статуса: docker compose ps"
-  echo "Логи TLS:         docker compose logs tg-tls -f"
-  echo "Логи прокси:      docker compose logs tg-proxy -f"
+echo "Логи TLS:         docker compose logs tls-wrapper -f"
+echo "Логи прокси:      docker compose logs mtproto-proxy -f"
   echo "=========================================="
 else
   echo "ОШИБКА: один из контейнеров не запустился. Логи:"
