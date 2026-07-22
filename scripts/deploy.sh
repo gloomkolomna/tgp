@@ -36,24 +36,12 @@ fi
 export $(grep -v '^#' .env | xargs)
 
 echo ""
-echo "=== 3/5: Генерация самоподписанного TLS-сертификата ==="
-CERT_DIR="$PROJECT_DIR/config/certs"
-mkdir -p "$CERT_DIR"
-
-CERT_FILE="$CERT_DIR/server.crt"
-KEY_FILE="$CERT_DIR/server.key"
-
-if [ ! -f "$CERT_FILE" ] || [ ! -f "$KEY_FILE" ]; then
-  echo "Сертификат не найден. Генерирую самоподписанный (срок 10 лет)..."
-  openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
-    -keyout "$KEY_FILE" \
-    -out "$CERT_FILE" \
-    -subj "/CN=$IPV4" \
-    -addext "subjectAltName=IP:$IPV4" 2>/dev/null || \
-  openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
-    -keyout "$KEY_FILE" \
-    -out "$CERT_FILE" \
-    -subj "/CN=$IPV4"
+echo "=== 3/5: Генерация TLS-сертификата ==="
+if [ -f "$PROJECT_DIR/scripts/gen-cert.sh" ]; then
+  bash "$PROJECT_DIR/scripts/gen-cert.sh"
+else
+  echo "ВНИМАНИЕ: scripts/gen-cert.sh не найден"
+fi
   chmod 600 "$KEY_FILE"
   echo "Сертификат создан"
 else
