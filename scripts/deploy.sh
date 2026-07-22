@@ -4,6 +4,7 @@ set -euo pipefail
 REPO_URL="https://github.com/gloomkolomna/tgp.git"
 PROJECT_DIR="/opt/tg-proxy"
 IPV4="5.188.20.78"
+DOMAIN="Xmax.ru"
 
 echo "=== 1/4: Получение свежего кода из $REPO_URL ==="
 if [ -d "$PROJECT_DIR/.git" ]; then
@@ -37,16 +38,32 @@ docker compose up -d
 sleep 3
 
 SECRET=$(grep ^SECRET .env | cut -d= -f2- | head -1)
+DOMAIN_HEX=$(echo -n "$DOMAIN" | xxd -p | tr -d '\n')
+LINK_SECRET="ee${SECRET}${DOMAIN_HEX}"
 
 if docker compose ps --status running | grep -q "tg-proxy"; then
   echo ""
-  echo "Прокси запущен."
-  echo "Ссылка: https://t.me/proxy?server=$IPV4&port=443&secret=$SECRET"
+  echo "=========================================="
+  echo " Прокси запущен"
+  echo "=========================================="
   echo ""
-  echo "Ручное подключение: MTProto, $IPV4:443, секрет $SECRET"
+  echo "Ссылка:"
+  echo "https://t.me/proxy?server=$IPV4&port=443&secret=$LINK_SECRET"
   echo ""
-  echo "На LTE подключение медленное — оператор инспектирует пакеты."
-  echo "После соединения скорость нормальная."
+  echo "Ручное подключение:"
+  echo "  Тип:    MTProto"
+  echo "  Хост:   $IPV4"
+  echo "  Порт:   443"
+  echo "  Секрет: $LINK_SECRET"
+  echo ""
+  echo "Маскировка: TLS 1.2 под $DOMAIN"
+  echo "Оператор LTE видит HTTPS — скорость без ограничений."
+  echo ""
+  echo "Команды:"
+  echo "  Статус:      docker compose ps"
+  echo "  Логи:        docker compose logs -f"
+  echo "  Перезапуск:  docker compose restart"
+  echo "=========================================="
 else
   echo "Ошибка. Логи:"
   docker compose logs --tail=30
