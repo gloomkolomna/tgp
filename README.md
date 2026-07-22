@@ -1,13 +1,13 @@
-# MTProto Telegram Proxy
+# MTProto Telegram Proxy (mtproto.zig)
 
-Официальный MTProto-прокси от Telegram в Docker. Поднимается одной командой.
+Прокси с автоматической маскировкой трафика под TLS 1.3 HTTPS.
+Оператор видит обычный HTTPS — не режет, не тормозит.
 
 ## Требования
 
-- Linux-сервер (Debian/Ubuntu рекомендуется)
-- Docker и Docker Compose (`docker compose` plugin)
-- Открытые порты: 443 (TCP)
-- Права root или пользователь в группе `docker`
+- Linux-сервер (Debian/Ubuntu)
+- Docker и Docker Compose
+- Открыт порт: 443 (TCP)
 
 ## Пошаговая установка
 
@@ -19,13 +19,6 @@ apt install -y docker.io docker-compose-v2 git curl openssl
 systemctl enable --now docker
 ```
 
-Проверить, что Docker работает:
-
-```bash
-docker --version
-docker compose version
-```
-
 ### 2. Клонировать репозиторий
 
 ```bash
@@ -35,12 +28,11 @@ cd /opt/tg-proxy
 
 ### 3. Первый запуск
 
-Скрипт проверит наличие `.env`, создаст его из шаблона и завершится с просьбой
-указать секрет:
-
 ```bash
 bash scripts/deploy.sh
 ```
+
+Скрипт создаст `.env` из шаблона и завершится с просьбой указать секрет.
 
 ### 4. Генерация секрета
 
@@ -56,11 +48,7 @@ openssl rand -hex 16
 nano /opt/tg-proxy/.env
 ```
 
-В файле `.env` укажите:
-
-- `SECRET` — вставить сгенерированный секрет
-- `WORKERS` — количество ядер CPU (для вашего сервера: `1`)
-- `TAG` — опционально, можно получить у [@MTProxybot](https://t.me/MTProxybot)
+Укажите `SECRET=...`
 
 ### 6. Запуск
 
@@ -68,19 +56,17 @@ nano /opt/tg-proxy/.env
 bash scripts/deploy.sh
 ```
 
-Скрипт загрузит образы, сгенерирует TLS-сертификат, запустит контейнеры и выведет ссылки.
+Скрипт сгенерирует конфиг, загрузит образ и запустит прокси.
 
 ## Подключение в Telegram
 
-Откройте ссылку в браузере на телефоне — Telegram сам предложит применить прокси.
-
-Либо вручную:
-1. Telegram → Настройки → Дата и сеть → Настройки прокси
-2. Добавить прокси → MTProto
+Вручную:
+1. Настройки → Дата и сеть → Настройки прокси
+2. Добавить → MTProto
 3. Хост: `5.188.20.78`, Порт: `443`, Секрет: из `.env`
 
-**Секрет всегда указывай обычный (32 символа, без ee/dd).**
-TLS добавляется автоматически через nginx на 443 порту. Оператор видит HTTPS.
+**Секрет всегда обычный (32 символа, без ee/dd).**
+Трафик автоматически маскируется под TLS 1.3.
 
 ## Команды
 
@@ -97,50 +83,34 @@ docker compose restart
 # Остановка
 docker compose down
 
-# Обновление образов и перезапуск
-docker compose pull && docker compose up -d
-
-# Полный деплой с git pull, генерацией серта и запуском (одной командой)
+# Полный деплой (git pull + запуск)
 bash scripts/deploy.sh
 ```
-
-## Проверка работы
-
-Подключитесь к прокси и отправьте в Telegram:
-
-```
-/info
-```
-
-боту [@MTProxybot](https://t.me/MTProxybot) — он покажет статус и статистику.
 
 ## Архитектура
 
 ```
-                  443/tcp (TLS)                   443/tcp (MTProto)
-Клиент ──▶ tg-tls (nginx) ──▶ tg-proxy ──▶ Telegram
-               │                    │
-               │                    └── /data (секреты, кэш)
+                  443/tcp (TLS 1.3)
+Клиент ──▶ tg-proxy (mtproto.zig) ──▶ Telegram
                │
-               ├── certs/server.{crt,key} (самоподписанный, 10 лет)
-               └── config/nginx.conf
-
-На WiFi:            порт 443, секрет обычный (TLS через nginx — прозрачно)
-На LTE:             порт 443, секрет обычный (TLS через nginx, оператор видит HTTPS)
+               ├── mtproto.toml (генерится из .env)
+               ├── tls_domain = rutube.ru (SNI маскировка)
+               ├── mask = true (TLS 1.3 поверх MTProto)
+               └── drs = true (динамический размер записей)
 ```
+
+Оператор LTE видит TLS 1.3 к `rutube.ru` — обычный HTTPS.
 
 ## Файлы проекта
 
 ```
-├── docker-compose.yml       # Docker Compose конфиг (nginx + mtproto)
+├── docker-compose.yml       # Docker Compose (один сервис)
 ├── config/
-│   ├── nginx.conf           # nginx stream-прокси с TLS
-│   └── certs/               # Самоподписанные сертификаты (генерятся при деплое)
-├── .env                     # Переменные окружения (НЕ КОММИТИТЬ)
+│   └── mtproto.toml         # Конфиг прокси (генерится из .env)
+├── .env                     # Секрет (НЕ КОММИТИТЬ)
 ├── .env.example             # Шаблон .env
-├── .gitignore               # Игнор .env и proxy-data/
 ├── scripts/
-│   ├── deploy.sh            # Деплой: git pull → cert → up → ссылки
+│   ├── deploy.sh            # Деплой: pull → конфиг → up → ссылки
 │   ├── generate-secret.sh   # Генерация секрета (Linux/macOS)
 │   └── generate-secret.ps1  # Генерация секрета (Windows)
 └── README.md

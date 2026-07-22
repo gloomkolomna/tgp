@@ -5,7 +5,7 @@ REPO_URL="https://github.com/gloomkolomna/tgp.git"
 PROJECT_DIR="/opt/tg-proxy"
 IPV4="5.188.20.78"
 
-echo "=== 1/5: Получение свежего кода из $REPO_URL ==="
+echo "=== 1/4: Получение свежего кода из $REPO_URL ==="
 if [ -d "$PROJECT_DIR/.git" ]; then
   echo "Репозиторий уже склонирован. Обновляю..."
   cd "$PROJECT_DIR"
@@ -17,7 +17,7 @@ else
 fi
 
 echo ""
-echo "=== 2/5: Проверка .env ==="
+echo "=== 2/4: Проверка .env ==="
 if [ ! -f .env ]; then
   if [ -f .env.example ]; then
     cp .env.example .env
@@ -36,50 +36,70 @@ fi
 export $(grep -v '^#' .env | xargs)
 
 echo ""
-echo "=== 3/5: Генерация TLS-сертификата ==="
-if [ -f "$PROJECT_DIR/scripts/gen-cert.sh" ]; then
-  bash "$PROJECT_DIR/scripts/gen-cert.sh"
-else
-  echo "ВНИМАНИЕ: scripts/gen-cert.sh не найден"
-fi
+echo "=== 3/4: Генерация конфигурации mtproto.toml ==="
+SECRET=$(grep ^SECRET .env | cut -d= -f2- | head -1)
+TLS_DOMAIN="rutube.ru"
+cat > "$PROJECT_DIR/config/mtproto.toml" << TOMLEOF
+[general]
+use_middle_proxy = true
+
+[upstream]
+type = "auto"
+
+[server]
+port = 443
+max_connections = 512
+idle_timeout_sec = 120
+handshake_timeout_sec = 15
+log_level = "info"
+rate_limit_per_subnet = 0
+
+[censorship]
+tls_domain = "$TLS_DOMAIN"
+mask = true
+mask_port = 443
+fast_mode = true
+drs = true
+
+[access.users]
+default = "$SECRET"
+
+[access.direct_users]
+default = true
+TOMLEOF
+echo "Конфиг создан (TLS-маскировка: $TLS_DOMAIN)"
 
 echo ""
-echo "=== 4/5: Загрузка образов и запуск ==="
+echo "=== 4/4: Загрузка образа и запуск ==="
+docker compose down --remove-orphans 2>/dev/null || true
 docker compose pull
-docker compose up -d --remove-orphans
-sleep 4
+docker compose up -d
+sleep 3
 
 echo ""
-echo "=== 5/5: Проверка и ссылки ==="
-TG_TLS=$(docker compose ps --status running | grep "tls-wrapper" || true)
-TG_PROXY=$(docker compose ps --status running | grep "mtproto-proxy" || true)
-
-if [ -n "$TG_TLS" ] && [ -n "$TG_PROXY" ]; then
+echo "=== Проверка и ссылки ==="
+if docker compose ps --status running | grep -q "tg-proxy"; then
   echo "Прокси успешно запущен!"
-
-  SECRET=$(grep ^SECRET .env | cut -d= -f2- | head -1)
-
   echo ""
   echo "=========================================="
-  echo " Ссылки для подключения:"
+  echo " Ссылка для подключения:"
   echo "=========================================="
-  echo ""
-  echo "--- LTE (порт 443, TLS) — быстрее ---"
   echo "https://t.me/proxy?server=$IPV4&port=443&secret=$SECRET"
   echo ""
-  echo "--- WiFi (порт 443, без TLS) ---"
-  echo "https://t.me/proxy?server=$IPV4&port=443&secret=$SECRET"
+  echo "Как подключаться (вручную):"
+  echo "  Тип:     MTProto"
+  echo "  Хост:    $IPV4"
+  echo "  Порт:    443"
+  echo "  Секрет:  $SECRET"
   echo ""
-  echo "ВАЖНО: На LTE порт 443 теперь идёт через реальный TLS."
-  echo "  Оператор видит обычный HTTPS, скорость не режется."
-  echo "  Секрет указывай обычный (без ee/dd)."
+  echo "Трафик маскируется под TLS 1.3 HTTPS ($TLS_DOMAIN)."
+  echo "Оператор видит обычный HTTPS. Секрет БЕЗ ee/dd."
   echo ""
   echo "Проверка статуса: docker compose ps"
-echo "Логи TLS:         docker compose logs tls-wrapper -f"
-echo "Логи прокси:      docker compose logs mtproto-proxy -f"
+  echo "Логи прокси:      docker compose logs -f"
   echo "=========================================="
 else
-  echo "ОШИБКА: один из контейнеров не запустился. Логи:"
-  docker compose logs --tail=20
+  echo "ОШИБКА: контейнер не запустился. Логи:"
+  docker compose logs --tail=30
   exit 1
 fi
