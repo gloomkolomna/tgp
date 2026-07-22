@@ -26,18 +26,23 @@ docker --version
 docker compose version
 ```
 
-### 2. Установка прокси
+### 2. Клонировать репозиторий
 
-Скрипт сам склонирует репозиторий, соберёт образ и запустит контейнер:
+```bash
+git clone https://github.com/gloomkolomna/tgp.git /opt/tg-proxy
+cd /opt/tg-proxy
+```
+
+### 3. Первый запуск
+
+Скрипт проверит наличие `.env`, создаст его из шаблона и завершится с просьбой
+указать секрет:
 
 ```bash
 bash scripts/deploy.sh
 ```
 
-При первом запуске он создаст `/opt/tg-proxy/.env` из шаблона и завершится с
-просьбой указать секрет.
-
-### 3. Генерация секрета
+### 4. Генерация секрета
 
 ```bash
 openssl rand -hex 16
@@ -45,7 +50,7 @@ openssl rand -hex 16
 
 Скопируйте вывод (32 hex-символа).
 
-### 4. Настройка
+### 5. Настройка
 
 ```bash
 nano /opt/tg-proxy/.env
@@ -57,13 +62,13 @@ nano /opt/tg-proxy/.env
 - `WORKERS` — количество ядер CPU (для вашего сервера: `1`)
 - `TAG` — опционально, можно получить у [@MTProxybot](https://t.me/MTProxybot)
 
-### 5. Запуск
+### 6. Запуск
 
 ```bash
 bash scripts/deploy.sh
 ```
 
-Скрипт соберёт образ, запустит контейнер и выведет ссылки для подключения.
+Скрипт загрузит официальный образ `telegrammessenger/proxy`, запустит контейнер и выведет ссылки.
 
 ## Подключение в Telegram
 
@@ -94,9 +99,9 @@ docker compose restart
 docker compose down
 
 # Обновление образа и перезапуск
-docker compose build --pull && docker compose up -d
+docker compose pull && docker compose up -d
 
-# Полный деплой с git pull + build + up (одной командой)
+# Полный деплой с git pull + pull + up (одной командой)
 bash scripts/deploy.sh
 ```
 
@@ -125,13 +130,13 @@ bash scripts/deploy.sh
 ## Файлы проекта
 
 ```
-├── Dockerfile               # Сборка образа (на основе официального)
+
 ├── docker-compose.yml       # Docker Compose конфиг
 ├── .env                     # Переменные окружения (НЕ КОММИТИТЬ)
 ├── .env.example             # Шаблон .env
 ├── .gitignore               # Игнор .env и proxy-data/
 ├── scripts/
-│   ├── deploy.sh            # Деплой: git pull → build → up → ссылки
+│   ├── deploy.sh            # Деплой: git pull → pull → up → ссылки
 │   ├── generate-secret.sh   # Генерация секрета (Linux/macOS)
 │   └── generate-secret.ps1  # Генерация секрета (Windows)
 └── README.md

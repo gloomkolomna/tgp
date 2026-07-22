@@ -35,8 +35,8 @@ fi
 export $(grep -v '^#' .env | xargs)
 
 echo ""
-echo "=== 3/5: Сборка образа ==="
-docker compose build --pull
+echo "=== 3/5: Загрузка образа ==="
+docker compose pull
 
 echo ""
 echo "=== 4/5: Запуск контейнера ==="

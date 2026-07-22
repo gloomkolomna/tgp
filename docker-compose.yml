@@ -2,8 +2,7 @@ version: "3.8"
 
 services:
   mtproto-proxy:
-    build: .
-    image: tgp-proxy:latest
+    image: telegrammessenger/proxy:latest
     container_name: tg-proxy
     restart: unless-stopped
     ports:
