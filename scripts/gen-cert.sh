@@ -13,6 +13,9 @@ if [ -f "$CERT_FILE" ] && [ -f "$KEY_FILE" ]; then
 fi
 
 echo "Генерация самоподписанного TLS-сертификата (срок 10 лет)..."
+
+[ -d "$CERT_FILE" ] && rm -rf "$CERT_FILE"
+[ -d "$KEY_FILE" ] && rm -rf "$KEY_FILE"
 mkdir -p "$CERT_DIR"
 
 openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
