@@ -11,61 +11,26 @@
 
 ## Быстрый старт
 
-### 1. Клонировать и перейти в папку
-
-```bash
-git clone <repo> ~/tg-proxy
-cd ~/tg-proxy
-```
-
-### 2. Сгенерировать секрет
-
-```bash
-# Linux/MacOS
-openssl rand -hex 16
-```
-
-или через скрипт:
-
-```bash
-bash scripts/generate-secret.sh
-```
-
-### 3. Настроить
-
-```bash
-cp .env.example .env
-nano .env
-```
-
-В `.env` укажите:
-- `SECRET` — скопировать из вывода `openssl rand -hex 16` (32 hex-символа)
-- `TAG` — опционально, получить у [@MTProxybot](https://t.me/MTProxybot)
-- `WORKERS` — число ядер CPU
-
-### 4. Запустить
+Всё, что нужно — запустить один скрипт. Он сам склонирует свежий код из репозитория,
+соберёт образ и запустит контейнер.
 
 ```bash
 bash scripts/deploy.sh
 ```
 
-или вручную:
+При первом запуске скрипт создаст `.env` из шаблона и попросит указать `SECRET`:
 
 ```bash
-docker compose up -d
+nano ~/tg-proxy/.env
 ```
 
-### 5. Получить ссылки
-
-Скрипт `deploy.sh` выведет ссылки автоматически. Если запускали вручную:
+Сгенерировать секрет:
 
 ```bash
-SECRET=$(grep ^SECRET .env | cut -d= -f2-)
-SERVER_IP=$(curl -s https://api.ipify.org)
-
-echo "https://t.me/proxy?server=$SERVER_IP&port=443&secret=$SECRET"
-echo "https://t.me/proxy?server=$SERVER_IP&port=443&secret=ee$SECRET"
+openssl rand -hex 16
 ```
+
+После сохранения `.env` — повторно запустить `deploy.sh`.
 
 ## Подключение в Telegram
 
@@ -96,7 +61,10 @@ docker compose restart
 docker compose down
 
 # Обновление образа и перезапуск
-docker compose pull && docker compose up -d
+docker compose build --pull && docker compose up -d
+
+# Полный деплой с git pull + build + up (одной командой)
+bash scripts/deploy.sh
 ```
 
 ## Проверка работы
@@ -124,12 +92,13 @@ docker compose pull && docker compose up -d
 ## Файлы проекта
 
 ```
+├── Dockerfile               # Сборка образа (на основе официального)
 ├── docker-compose.yml       # Docker Compose конфиг
 ├── .env                     # Переменные окружения (НЕ КОММИТИТЬ)
 ├── .env.example             # Шаблон .env
 ├── .gitignore               # Игнор .env и proxy-data/
 ├── scripts/
-│   ├── deploy.sh            # Деплой (генерация ссылок, проверка)
+│   ├── deploy.sh            # Деплой: git pull → build → up → ссылки
 │   ├── generate-secret.sh   # Генерация секрета (Linux/macOS)
 │   └── generate-secret.ps1  # Генерация секрета (Windows)
 └── README.md
