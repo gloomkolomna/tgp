@@ -14,6 +14,11 @@ fi
 
 echo "Генерация самоподписанного TLS-сертификата (срок 10 лет)..."
 
+if docker compose ps --status running 2>/dev/null | grep -q "tg-tls"; then
+  echo "Останавливаю tg-tls..."
+  docker compose stop tg-tls
+fi
+
 [ -d "$CERT_FILE" ] && rm -rf "$CERT_FILE"
 [ -d "$KEY_FILE" ] && rm -rf "$KEY_FILE"
 mkdir -p "$CERT_DIR"
