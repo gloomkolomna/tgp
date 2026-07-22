@@ -5,10 +5,7 @@ services:
     restart: unless-stopped
     ports:
       - "443:443/tcp"
-    environment:
-      - MTP_PORT=443
-      - MTP_SECRET=${SECRET}
-      - MTP_TLS_ONLY=1
+    command: "-p 443 -s ${SECRET} -a tls"
     logging:
       driver: "json-file"
       options:
