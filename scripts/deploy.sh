@@ -42,11 +42,6 @@ if [ -f "$PROJECT_DIR/scripts/gen-cert.sh" ]; then
 else
   echo "ВНИМАНИЕ: scripts/gen-cert.sh не найден"
 fi
-  chmod 600 "$KEY_FILE"
-  echo "Сертификат создан"
-else
-  echo "Сертификат уже существует"
-fi
 
 echo ""
 echo "=== 4/5: Загрузка образов и запуск ==="
