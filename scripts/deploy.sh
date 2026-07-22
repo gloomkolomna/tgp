@@ -2,7 +2,7 @@
 set -euo pipefail
 
 REPO_URL="https://github.com/gloomkolomna/tgp.git"
-PROJECT_DIR="$HOME/tg-proxy"
+PROJECT_DIR="/opt/tg-proxy"
 
 echo "=== 1/5: Получение свежего кода из $REPO_URL ==="
 if [ -d "$PROJECT_DIR/.git" ]; then
