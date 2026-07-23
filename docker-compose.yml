@@ -1,20 +1,14 @@
 services:
   mtproto-proxy:
-    image: telegrammessenger/proxy:latest
+    image: alexbers/mtprotoproxy:latest
     container_name: tg-proxy
     restart: unless-stopped
     ports:
       - "443:443/tcp"
-      - "443:443/udp"
-    environment:
-      - SECRET=${SECRET}
     volumes:
-      - proxy-data:/data
+      - ./config/config.py:/app/config.py:ro
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
-
-volumes:
-  proxy-data:
