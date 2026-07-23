@@ -28,9 +28,17 @@ if command -v nft >/dev/null 2>&1; then
   nft add table inet tg_proxy_clamp
 
   # host networking: traffic goes INPUT → local process → OUTPUT
+  # SYN-ACK from server to client (outbound): clamp MSS so the client
+  # announces a small enough MSS → large packets don't hit LTE MTU holes.
   nft 'add chain inet tg_proxy_clamp output { type filter hook output priority mangle; policy accept; }'
   nft add rule inet tg_proxy_clamp output \
-      tcp sport "${PORT}" 'tcp flags & (fin|syn|rst|ack) == syn' \
+      tcp sport "${PORT}" tcp flags syn \
+      "tcp option maxseg size set ${MSS}"
+
+  # Client's inbound SYN: also clamp so the server side picks it up.
+  nft 'add chain inet tg_proxy_clamp input { type filter hook input priority mangle; policy accept; }'
+  nft add rule inet tg_proxy_clamp input \
+      tcp dport "${PORT}" tcp flags syn \
       "tcp option maxseg size set ${MSS}"
 
   # backward compat: Docker NAT (FORWARD chain)
