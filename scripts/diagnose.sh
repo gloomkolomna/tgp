@@ -29,13 +29,15 @@ fi
 
 echo ""
 echo "=== Kernel: congestion control & buffers ==="
-CC="$(sysctl -n net.ipv4.tcp_congestion_control 2>/dev/null || echo '?')"
-mark "BBR активен" "$CC" "bbr"
-mark "tcp_mtu_probing" "$(sysctl -n net.ipv4.tcp_mtu_probing 2>/dev/null || echo '?')" "1"
-mark "slow_start_after_left=0" "$(sysctl -n net.ipv4.tcp_slow_start_after_left 2>/dev/null || echo '?')" "0"
-printf '  rmem_max / wmem_max : %s / %s\n' \
-  "$(sysctl -n net.core.rmem_max 2>/dev/null || echo '?')" \
-  "$(sysctl -n net.core.wmem_max 2>/dev/null || echo '?')"
+  CC="$(cat /proc/sys/net/ipv4/tcp_congestion_control 2>/dev/null || echo '?')"
+  mark "BBR активен" "$CC" "bbr"
+  [ -f /proc/sys/net/ipv4/tcp_mtu_probing ] && MTU="$(cat /proc/sys/net/ipv4/tcp_mtu_probing)" || MTU="N/A"
+  mark "tcp_mtu_probing" "$MTU" "1"
+  [ -f /proc/sys/net/ipv4/tcp_slow_start_after_left ] && SSLOW="$(cat /proc/sys/net/ipv4/tcp_slow_start_after_left)" || SSLOW="N/A"
+  mark "slow_start_after_left=0" "$SSLOW" "0"
+  printf '  rmem_max / wmem_max : %s / %s\n' "$RMEM" "$WMEM"
+  RMEM="$(cat /proc/sys/net/core/rmem_max 2>/dev/null || echo '?')"
+  WMEM="$(cat /proc/sys/net/core/wmem_max 2>/dev/null || echo '?')"
 
 echo ""
 echo "=== conntrack (NAT state table) ==="
