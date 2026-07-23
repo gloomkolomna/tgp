@@ -4,7 +4,7 @@ set -euo pipefail
 REPO_URL="https://github.com/gloomkolomna/tgp.git"
 PROJECT_DIR="/opt/tg-proxy"
 IPV4="5.188.20.78"
-DOMAIN="Xmax.ru"
+DOMAIN="www.google.com"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 
 echo "=== 1/5: Получение свежего кода ==="
