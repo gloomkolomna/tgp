@@ -1,18 +1,20 @@
 services:
   mtproto-proxy:
-    image: seriyps/mtproto-proxy:latest
+    image: telegrammessenger/proxy:latest
     container_name: tg-proxy
     restart: unless-stopped
-
-    network_mode: host
-    mem_limit: 384m
-    memswap_limit: 640m
-    init: true
-
-    command: "-p 443 -s ${SECRET} -t 00000000000000000000000000000000 -a tls"
-
+    ports:
+      - "443:443/tcp"
+      - "443:443/udp"
+    environment:
+      - SECRET=${SECRET}
+    volumes:
+      - proxy-data:/data
     logging:
       driver: "json-file"
       options:
-        max-size: "5m"
-        max-file: "2"
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  proxy-data:
