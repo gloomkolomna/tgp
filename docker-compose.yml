@@ -4,83 +4,12 @@ services:
     container_name: tg-proxy
     restart: unless-stopped
 
-    # Host networking: the container binds host:443 directly, removing the
-    # docker-proxy / conntrack hop on the hot path. On lossy mobile links this
-    # matters — fewer stateful middleboxes = fewer "connected but stuck"
-    # failures when an operator NAT mapping silently expires.
     network_mode: host
-
-    # Hard cap so a burst of scan connections / a memory leak can never OOM
-    # the 1 GB host. Erlang will be restarted by `restart: unless-stopped`.
     mem_limit: 384m
     memswap_limit: 640m
-
-    # Use proper PID1 (signal forwarding + zombie reaping). We bypass the
-    # upstream start.sh to pass app-level tuning overrides directly as Erlang
-    # release arguments (-mtproto_proxy Key Value). Unknown keys are ignored
-    # by the app, so this degrades gracefully across image versions.
     init: true
-    entrypoint: ["/opt/mtp_proxy/bin/mtp_proxy"]
-    command:
-      - foreground
-      # --- listener (port/secret/tag) -----------------------------------
-      # Secret comes from .env via compose interpolation, so it never lands in
-      # the image or in git. Tag is the dummy promo tag (get a real one from
-      # @MTProxybot if you want referral stats).
-      - -mtproto_proxy
-      - ports
-      - '#{name => tg_proxy, port => 443, secret => <<"${SECRET}">>, tag => <<"00000000000000000000000000000000">>}'
-      # --- protocol: fake-TLS only (HTTPS disguise) ----------------------
-      - -mtproto_proxy
-      - allowed_protocols
-      - "[mtp_fake_tls]"
-      # --- caps for a SMALL server (~5 users, 1GB RAM) -------------------
-      # Protect the host from internet scan bursts: a few hundred connections
-      # is plenty for 5 users; anything more is almost certainly a scanner.
-      - -mtproto_proxy
-      - max_connections
-      - "500"
-      # --- mobile/LTE tuning ---------------------------------------------
-      # More initial downstream (proxy<->Telegram DC) connections so short
-      # mobile sessions don't pay setup latency every time. 2 is enough for
-      # ~5 users (default is 2 already, made explicit).
-      - -mtproto_proxy
-      - init_dc_connections
-      - "2"
-      - -mtproto_proxy
-      - clients_per_dc_connection
-      - "100"
-      # Modest user-space recv buffers — enough for bursts, light on RAM.
-      - -mtproto_proxy
-      - upstream_socket_buffer_size
-      - "131072"
-      - -mtproto_proxy
-      - downstream_socket_buffer_size
-      - "262144"
-      # Longer handshake window for high/variable RTT on mobile.
-      - -mtproto_proxy
-      - init_timeout_sec
-      - "60"
-      # Shorter idle timeout: a client that went silent on LTE (NAT dropped
-      # the mapping) is reaped sooner and reconnects cleanly, instead of the
-      # proxy holding a zombie connection that swallows messages.
-      - -mtproto_proxy
-      - ready_timeout_sec
-      - "300"
-      # When a fake-TLS handshake fails (wrong secret / real browser / DPI
-      # probe), forward the raw TCP connection to the real SNI host instead of
-      # closing -> proxy is indistinguishable from a normal HTTPS server.
-      - -mtproto_proxy
-      - domain_fronting
-      - sni
-      # Send RST on handshake errors to free sockets (fewer TIME_WAIT states).
-      - -mtproto_proxy
-      - reset_close_socket
-      - handshake_error
-      # Replay-attack hardening (on by default; made explicit).
-      - -mtproto_proxy
-      - replay_check_session_storage
-      - "on"
+
+    command: "-p 443 -s ${SECRET} -t 00000000000000000000000000000000 -a tls"
 
     logging:
       driver: "json-file"
