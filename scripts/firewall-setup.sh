@@ -20,20 +20,29 @@ if [ "$(id -u)" -ne 0 ]; then
   exit 1
 fi
 
-echo "=== TCP MSS clamping (port ${PORT}, MSS=${MSS}) ==="
+echo "=== TCP MSS clamping (port ${PORT}, MSS=${MSS}, host-network) ==="
 
 # nftables first (Debian 11+ / modern kernels).
 if command -v nft >/dev/null 2>&1; then
   nft delete table inet tg_proxy_clamp 2>/dev/null || true
   nft add table inet tg_proxy_clamp
-  nft 'add chain inet tg_proxy_clamp mangle { type filter hook forward priority mangle; policy accept; }'
-  nft add rule inet tg_proxy_clamp mangle \
+
+  # host networking: traffic goes INPUT → local process → OUTPUT
+  nft 'add chain inet tg_proxy_clamp output { type filter hook output priority mangle; policy accept; }'
+  nft add rule inet tg_proxy_clamp output \
+      tcp sport "${PORT}" 'tcp flags & (fin|syn|rst|ack) == syn' \
+      "tcp option maxseg size set ${MSS}"
+
+  # backward compat: Docker NAT (FORWARD chain)
+  nft 'add chain inet tg_proxy_clamp forward { type filter hook forward priority mangle; policy accept; }'
+  nft add rule inet tg_proxy_clamp forward \
       'tcp flags & (fin|syn|rst|ack) == syn' \
       "tcp dport ${PORT} tcp option maxseg size set ${MSS}"
-  nft add rule inet tg_proxy_clamp mangle \
+  nft add rule inet tg_proxy_clamp forward \
       'tcp flags & (fin|syn|rst|ack) == syn' \
       "tcp sport ${PORT} tcp option maxseg size set ${MSS}"
-  echo "OK (nftables): правила MSS clamping установлены."
+
+  echo "OK (nftables): MSS=${MSS} на OUTPUT + FORWARD цепочках."
   echo ""
   echo "Просмотр: nft list table inet tg_proxy_clamp"
   echo "Удаление: nft delete table inet tg_proxy_clamp"
@@ -42,6 +51,13 @@ fi
 
 # Fallback: legacy iptables.
 if command -v iptables >/dev/null 2>&1; then
+  # host networking — OUTPUT chain on SYN-ACK
+  iptables -t mangle -D OUTPUT -p tcp --tcp-flags SYN,RST SYN \
+           --sport "${PORT}" -j TCPMSS --set-mss "${MSS}" 2>/dev/null || true
+  iptables -t mangle -A OUTPUT -p tcp --tcp-flags SYN,RST SYN \
+           --sport "${PORT}" -j TCPMSS --set-mss "${MSS}"
+
+  # backward compat — FORWARD chain (Docker NAT)
   iptables -t mangle -D FORWARD -p tcp --tcp-flags SYN,RST SYN \
            --dport "${PORT}" -j TCPMSS --set-mss "${MSS}" 2>/dev/null || true
   iptables -t mangle -D FORWARD -p tcp --tcp-flags SYN,RST SYN \
@@ -50,9 +66,10 @@ if command -v iptables >/dev/null 2>&1; then
            --dport "${PORT}" -j TCPMSS --set-mss "${MSS}"
   iptables -t mangle -A FORWARD -p tcp --tcp-flags SYN,RST SYN \
            --sport "${PORT}" -j TCPMSS --set-mss "${MSS}"
-  echo "OK (iptables): правила MSS clamping установлены."
+
+  echo "OK (iptables): MSS=${MSS} на OUTPUT + FORWARD цепочках."
   echo ""
-  echo "Просмотр: iptables -t mangle -L FORWARD -v -n"
+  echo "Просмотр: iptables -t mangle -L OUTPUT -v -n"
   exit 0
 fi
 

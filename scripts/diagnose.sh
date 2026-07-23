@@ -68,8 +68,15 @@ echo ""
 echo "=== MSS clamping rules ==="
 if command -v nft >/dev/null 2>&1 && nft list table inet tg_proxy_clamp >/dev/null 2>&1; then
   echo "  [OK]   nftables MSS clamp активен"
-elif command -v iptables >/dev/null 2>&1 && iptables -t mangle -S FORWARD 2>/dev/null | grep -q TCPMSS; then
-  echo "  [OK]   iptables MSS clamp активен"
+  nft list chain inet tg_proxy_clamp output 2>/dev/null | grep -q maxseg && echo "  [OK]     OUTPUT chain (host-network)" || echo "  [WARN]   нет OUTPUT-правила (нужно для host-network)"
+elif command -v iptables >/dev/null 2>&1; then
+  if iptables -t mangle -S OUTPUT 2>/dev/null | grep -q TCPMSS; then
+    echo "  [OK]   iptables MSS clamp активен (OUTPUT)"
+  elif iptables -t mangle -S FORWARD 2>/dev/null | grep -q TCPMSS; then
+    echo "  [WARN] iptables MSS только на FORWARD — переключитесь на host-network firewall"
+  else
+    echo "  [WARN] MSS clamping не найден"
+  fi
 else
   echo "  [WARN] MSS clamping не найден — большие пакеты могут пропадать на LTE. Запустите:"
   echo "         sudo bash scripts/firewall-setup.sh"
